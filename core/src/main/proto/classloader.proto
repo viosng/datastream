@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.spbsu.datastream.core";
+option java_outer_classname = "ClassLoaderService";
+option objc_class_prefix = "CLS";
+
+package helloworld;
+
+service RemoteClassLoaderService {
+    rpc findClass (ClassByteCodeRequest) returns (ClassByteCodeResponse) {}
+}
+
+message ClassByteCodeRequest {
+    string name = 1;
+}
+
+message ClassByteCodeResponse {
+    string name = 1;
+    bytes byteCode = 2;
+}
