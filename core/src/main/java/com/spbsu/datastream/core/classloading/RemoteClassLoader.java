@@ -1,5 +1,8 @@
-package com.spbsu.datastream.core;
+package com.spbsu.datastream.core.classloading;
 
+import com.spbsu.datastream.core.ClassByteCodeRequest;
+import com.spbsu.datastream.core.ClassByteCodeResponse;
+import com.spbsu.datastream.core.RemoteClassLoaderServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import org.slf4j.Logger;

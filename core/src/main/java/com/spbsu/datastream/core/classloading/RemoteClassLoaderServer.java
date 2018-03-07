@@ -1,6 +1,8 @@
-package com.spbsu.datastream.core;
+package com.spbsu.datastream.core.classloading;
 
-import com.google.protobuf.ByteString;
+import com.spbsu.datastream.core.ClassByteCodeRequest;
+import com.spbsu.datastream.core.ClassByteCodeResponse;
+import com.spbsu.datastream.core.RemoteClassLoaderServiceGrpc;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -8,16 +10,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.InputStream;
+
+import static com.google.protobuf.ByteString.copyFrom;
 
 public class RemoteClassLoaderServer {
     private static final Logger logger = LoggerFactory.getLogger(RemoteClassLoaderServer.class);
 
     private final Server server;
 
-    public RemoteClassLoaderServer(ClassLoader classLoader, int port) {
+    public RemoteClassLoaderServer(ClassByteCodeService byteCodeService, int port) {
         server = ServerBuilder.forPort(port)
-                .addService(new RemoteClassLoaderServiceImpl(classLoader))
+                .addService(new RemoteClassLoaderServiceImpl(byteCodeService))
                 .build();
     }
 
@@ -25,7 +28,6 @@ public class RemoteClassLoaderServer {
         server.start();
         logger.info("Server started, listening on {}", server.getPort());
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            // Use stderr here since the logger may have been reset by its JVM shutdown hook.
             logger.error("*** shutting down gRPC server since JVM is shutting down");
             RemoteClassLoaderServer.this.stop();
             logger.error("*** server shut down");
@@ -49,26 +51,22 @@ public class RemoteClassLoaderServer {
 
     static class RemoteClassLoaderServiceImpl extends RemoteClassLoaderServiceGrpc.RemoteClassLoaderServiceImplBase {
 
-        private final ClassLoader classLoader;
+        private final ClassByteCodeService byteCodeService;
 
-        RemoteClassLoaderServiceImpl(ClassLoader classLoader) {
-            this.classLoader = classLoader;
+        RemoteClassLoaderServiceImpl(ClassByteCodeService byteCodeService) {
+            this.byteCodeService = byteCodeService;
         }
 
         @Override
         public void findClass(ClassByteCodeRequest request, StreamObserver<ClassByteCodeResponse> responseObserver) {
             try {
-                final Class<?> aClass = classLoader.loadClass(request.getName());
-                final String classAsPath = aClass.getName().replace('.', '/') + ".class";
-                final InputStream stream = classLoader.getResourceAsStream(classAsPath);
                 final ClassByteCodeResponse response = ClassByteCodeResponse.newBuilder()
-                        .setByteCode(ByteString.readFrom(stream))
+                        .setByteCode(copyFrom(byteCodeService.getByteCode(request.getName())))
                         .build();
                 responseObserver.onNext(response);
-            } catch (ClassNotFoundException | IOException e) {
-                responseObserver.onError(e);
-            } finally {
                 responseObserver.onCompleted();
+            } catch (Exception e) {
+                responseObserver.onError(e);
             }
         }
     }
