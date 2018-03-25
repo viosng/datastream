@@ -1,7 +1,5 @@
 package com.spbsu.datastream.core.classloading;
 
-import java.util.jar.JarFile;
-
 /**
  * @author nickolaysaveliev
  * @since 07/03/2018
@@ -9,5 +7,7 @@ import java.util.jar.JarFile;
 public interface ClassByteCodeService {
     byte[] getByteCode(String className);
 
-    void loadJar(JarFile jarFile);
+    void store(Class<?> clazz);
+
+    void store(DSOperationTemplate operationTemplate);
 }

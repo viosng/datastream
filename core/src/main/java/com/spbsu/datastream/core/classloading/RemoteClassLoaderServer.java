@@ -1,11 +1,10 @@
 package com.spbsu.datastream.core.classloading;
 
-import com.spbsu.datastream.core.ClassByteCodeRequest;
-import com.spbsu.datastream.core.ClassByteCodeResponse;
-import com.spbsu.datastream.core.RemoteClassLoaderServiceGrpc;
+import com.spbsu.datastream.core.*;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
+import org.apache.commons.lang3.SerializationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +61,24 @@ public class RemoteClassLoaderServer {
             try {
                 final ClassByteCodeResponse response = ClassByteCodeResponse.newBuilder()
                         .setByteCode(copyFrom(byteCodeService.getByteCode(request.getName())))
+                        .build();
+                responseObserver.onNext(response);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                responseObserver.onError(e);
+            }
+        }
+
+        @Override
+        public void uploadClass(ClassByteCodeUploadRequest request, StreamObserver<ClassByteCodeUploadResponse> responseObserver) {
+            try {
+                final Class<?> aClass = SerializationUtils.deserialize(request.getByteCode().toByteArray());
+
+                byteCodeService.store(aClass);
+
+                final ClassByteCodeUploadResponse response = ClassByteCodeUploadResponse.newBuilder()
+                        .setResult(ClassByteCodeUploadResponse.Result.SUCCESS)
+                        .setMessage("success")
                         .build();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();

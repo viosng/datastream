@@ -9,13 +9,27 @@ package helloworld;
 
 service RemoteClassLoaderService {
     rpc findClass (ClassByteCodeRequest) returns (ClassByteCodeResponse) {}
+    rpc uploadClass (ClassByteCodeUploadRequest) returns (ClassByteCodeUploadResponse) {}
 }
 
 message ClassByteCodeRequest {
     string name = 1;
 }
 
+message ClassByteCodeUploadRequest {
+    string name = 1;
+    bytes byteCode = 2;
+    }
+
 message ClassByteCodeResponse {
     string name = 1;
     bytes byteCode = 2;
+}
+message ClassByteCodeUploadResponse {
+    enum Result {
+        SUCCESS = 0;
+        ERROR = 1;
+    }
+    Result result = 1;
+    string message = 2;
 }
