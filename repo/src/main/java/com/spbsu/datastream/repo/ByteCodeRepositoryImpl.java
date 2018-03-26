@@ -1,21 +1,14 @@
 package com.spbsu.datastream.repo;
 
 import com.spbsu.datastream.core.classloading.ClassByteCodeService;
-import com.spbsu.datastream.core.classloading.DSGroupTemplate;
-import com.spbsu.datastream.core.classloading.DSMapTemplate;
 import com.spbsu.datastream.core.classloading.DSOperationTemplate;
 import com.spbsu.datastream.core.data.DSType;
 import com.spbsu.datastream.repo.storage.ClassStorageService;
-import org.apache.commons.lang3.SerializationUtils;
 
 import javax.annotation.Nullable;
-import java.util.Enumeration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -37,18 +30,17 @@ public class ByteCodeRepositoryImpl implements ClassByteCodeService {
     @Override
     public byte[] getByteCode(@Nullable String className) {
         return classStorageService.find(checkNotNull(className))
-                .map(SerializationUtils::serialize)
                 .orElseThrow(() -> new IllegalArgumentException(className + " class wasn't found"));
     }
 
     @Override
-    public void store(@Nullable Class<?> clazz) {
-        classStorageService.storeClass(checkNotNull(clazz) );
+    public void store(String name, byte[] bytes) {
+        classStorageService.storeClass(checkNotNull(name), checkNotNull(bytes) );
     }
 
     @Override
     public void store(@Nullable DSOperationTemplate template) {
-        final DSOperationTemplate operationTemplate = checkNotNull(template);
+        /*final DSOperationTemplate operationTemplate = checkNotNull(template);
         latestVersions.compute(operationName(operationTemplate), (operationName, counter) -> {
             final AtomicInteger versionCounter = Optional.ofNullable(counter).orElse(new AtomicInteger());
             final int newVersion = versionCounter.incrementAndGet();
@@ -59,7 +51,7 @@ public class ByteCodeRepositoryImpl implements ClassByteCodeService {
                 operationRepo.put(nameWithVersion, generateGroup(nameWithVersion, ((DSGroupTemplate) operationTemplate)));
             }
             return versionCounter;
-        });
+        });*/
     }
 
     private String operationName(DSOperationTemplate operation) {

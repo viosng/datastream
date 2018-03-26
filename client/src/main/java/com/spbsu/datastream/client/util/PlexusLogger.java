@@ -1,4 +1,4 @@
-package com.spbsu.datastream.client;
+package com.spbsu.datastream.client.util;
 
 import org.codehaus.plexus.logging.Logger;
 

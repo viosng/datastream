@@ -1,5 +1,6 @@
-package com.spbsu.datastream.client;
+package com.spbsu.datastream.client.shade;
 
+import com.spbsu.datastream.client.util.PlexusLogger;
 import org.apache.maven.plugins.shade.DefaultShader;
 import org.codehaus.plexus.logging.Logger;
 import org.slf4j.LoggerFactory;

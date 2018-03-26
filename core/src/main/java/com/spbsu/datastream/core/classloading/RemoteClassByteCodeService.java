@@ -7,7 +7,6 @@ import com.spbsu.datastream.core.ClassByteCodeUploadRequest;
 import com.spbsu.datastream.core.RemoteClassLoaderServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import org.apache.commons.lang3.SerializationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,11 +39,11 @@ public class RemoteClassByteCodeService implements ClassByteCodeService, AutoClo
     }
 
     @Override
-    public void store(Class<?> clazz) {
-        log.info("store class request: {}", clazz.getName());
+    public void store(String name, byte[] bytes) {
+        log.info("store class request: {}", name);
         final ClassByteCodeUploadRequest request = ClassByteCodeUploadRequest.newBuilder()
-                .setName(clazz.getName())
-                .setByteCode(ByteString.copyFrom(SerializationUtils.serialize(clazz)))
+                .setName(name)
+                .setByteCode(ByteString.copyFrom(bytes))
                 .build();
         blockingStub.uploadClass(request);
     }

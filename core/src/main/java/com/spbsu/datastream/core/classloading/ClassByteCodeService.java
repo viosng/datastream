@@ -7,7 +7,7 @@ package com.spbsu.datastream.core.classloading;
 public interface ClassByteCodeService {
     byte[] getByteCode(String className);
 
-    void store(Class<?> clazz);
+    void store(String name, byte[] bytes);
 
     void store(DSOperationTemplate operationTemplate);
 }

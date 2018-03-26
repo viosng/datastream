@@ -1,10 +1,10 @@
 package com.spbsu.datastream.core.classloading;
 
 import com.spbsu.datastream.core.*;
+import com.spbsu.datastream.core.Void;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.lang3.SerializationUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +13,7 @@ import java.io.IOException;
 import static com.google.protobuf.ByteString.copyFrom;
 
 public class RemoteClassLoaderServer {
-    private static final Logger logger = LoggerFactory.getLogger(RemoteClassLoaderServer.class);
+    private static final Logger log = LoggerFactory.getLogger(RemoteClassLoaderServer.class);
 
     private final Server server;
 
@@ -25,11 +25,11 @@ public class RemoteClassLoaderServer {
 
     public void start() throws IOException {
         server.start();
-        logger.info("Server started, listening on {}", server.getPort());
+        log.info("Server started, listening on {}", server.getPort());
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            logger.error("*** shutting down gRPC server since JVM is shutting down");
+            log.error("*** shutting down gRPC server since JVM is shutting down");
             RemoteClassLoaderServer.this.stop();
-            logger.error("*** server shut down");
+            log.error("*** server shut down");
         }));
     }
 
@@ -65,24 +65,19 @@ public class RemoteClassLoaderServer {
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } catch (Exception e) {
+                log.error("Error caught", e);
                 responseObserver.onError(e);
             }
         }
 
         @Override
-        public void uploadClass(ClassByteCodeUploadRequest request, StreamObserver<ClassByteCodeUploadResponse> responseObserver) {
+        public void uploadClass(ClassByteCodeUploadRequest request, StreamObserver<Void> responseObserver) {
             try {
-                final Class<?> aClass = SerializationUtils.deserialize(request.getByteCode().toByteArray());
-
-                byteCodeService.store(aClass);
-
-                final ClassByteCodeUploadResponse response = ClassByteCodeUploadResponse.newBuilder()
-                        .setResult(ClassByteCodeUploadResponse.Result.SUCCESS)
-                        .setMessage("success")
-                        .build();
-                responseObserver.onNext(response);
+                byteCodeService.store(request.getName(), request.getByteCode().toByteArray());
+                responseObserver.onNext(Void.newBuilder().build());
                 responseObserver.onCompleted();
             } catch (Exception e) {
+                log.error("Error caught", e);
                 responseObserver.onError(e);
             }
         }
