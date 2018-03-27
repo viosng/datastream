@@ -3,13 +3,14 @@ package com.spbsu.datastream.client;
 import com.spbsu.datastream.client.shade.CustomShader;
 import com.spbsu.datastream.core.classloading.RemoteClassByteCodeService;
 import com.spbsu.datastream.core.classloading.RemoteClassLoader;
-import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.shade.ShadeRequest;
 import org.apache.maven.plugins.shade.relocation.SimpleRelocator;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Paths;
@@ -23,9 +24,9 @@ import static java.util.Collections.*;
 
 public class Main {
     public static void main(String[] args) throws ClassNotFoundException {
-        if (args.length < 6) {
+        if (args.length < 3) {
             Class<?> aClass = new RemoteClassLoader(new RemoteClassByteCodeService("localhost", 11111))
-                    .loadClass("bundle-9f960c75-84ba-4df5-8273-0a955f67ae4dcom.google.common.annotations.GwtCompatible");
+                    .loadClass("bundle-434670a9-9458-4c7b-96c0-253f05acb351org.jooq.lambda.Seq");
             System.out.println(aClass.getName());
             System.out.println("Usage: <host> <port> <path to jar file>");
         } else {
@@ -40,7 +41,7 @@ public class Main {
         CustomShader shader = new CustomShader();
         ShadeRequest shadeRequest = new ShadeRequest();
         shadeRequest.setJars(singleton(new File(fileName)));
-        String prefix = "bundle-" + uuid.toString();
+        String prefix = "bundle-" + uuid.toString() + ".";
         String folder = Paths.get(".").toAbsolutePath().normalize().toString();
         shadeRequest.setRelocators(singletonList(new SimpleRelocator("", prefix, emptyList(), Arrays.asList(
                 "java/**",
@@ -71,17 +72,17 @@ public class Main {
                     if (je.isDirectory() || !je.getName().endsWith(".class")) {
                         continue;
                     }
-                    final String className = je.getName().replace('/', '.'); // including ".class"
-                    final String restoredClassName = className.substring(0, className.length() - ".class".length());
-                    final Class<?> aClass = urlClassLoader.loadClass(restoredClassName);
-                    byteCodeService.store(className, SerializationUtils.serialize(aClass));
+                    try(InputStream resourceAsStream = urlClassLoader.getResourceAsStream(je.getName())){
+                        final String className = je.getName().replace('/', '.');
+                        byteCodeService.store(className, IOUtils.toByteArray(resourceAsStream));
+                    }
                 }
             } finally {
                 if (!(shadeJarFile.delete())) {
                     System.err.println("Can't delete file " + shadeJarFile.getName());
                 }
             }
-        } catch (IOException | MojoExecutionException | ClassNotFoundException e) {
+        } catch (IOException | MojoExecutionException e) {
             e.printStackTrace();
         }
     }

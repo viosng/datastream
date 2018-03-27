@@ -22,7 +22,7 @@ public class ClassStorageService {
         log.info("Starting class storage in directory: {}", directory);
         FSCacheHandler cacheHandler = new FSCacheHandler(directory);
         this.classCache = Caffeine.newBuilder()
-                .maximumSize(10_000)
+                .maximumSize(500_000)
                 .expireAfterWrite(1, TimeUnit.HOURS)
                 .writer(cacheHandler)
                 .build(cacheHandler);
