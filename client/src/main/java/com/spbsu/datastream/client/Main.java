@@ -24,9 +24,9 @@ import static java.util.Collections.*;
 
 public class Main {
     public static void main(String[] args) throws ClassNotFoundException {
-        if (args.length < 3) {
+        if (args.length < 6) {
             Class<?> aClass = new RemoteClassLoader(new RemoteClassByteCodeService("localhost", 11111))
-                    .loadClass("bundle-434670a9-9458-4c7b-96c0-253f05acb351org.jooq.lambda.Seq");
+                    .loadClass("bundle-356fa7b1-e458-4255-a811-b1c09fef67d7.org.apache.tools.ant.types.selectors.TypeSelector.class");
             System.out.println(aClass.getName());
             System.out.println("Usage: <host> <port> <path to jar file>");
         } else {

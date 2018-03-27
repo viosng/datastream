@@ -5,7 +5,7 @@ option java_package = "com.spbsu.datastream.core";
 option java_outer_classname = "ClassLoaderService";
 option objc_class_prefix = "CLS";
 
-package helloworld;
+package datastream.rpc;
 
 service RemoteClassLoaderService {
     rpc findClass (ClassByteCodeRequest) returns (ClassByteCodeResponse) {}
@@ -19,7 +19,7 @@ message ClassByteCodeRequest {
 message ClassByteCodeUploadRequest {
     string name = 1;
     bytes byteCode = 2;
-    }
+}
 
 message ClassByteCodeResponse {
     string name = 1;
