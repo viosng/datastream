@@ -1,41 +1,53 @@
-package com.spbsu.datastream.core.classloading;
-
-import com.spbsu.datastream.core.*;
-import com.spbsu.datastream.core.Void;
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.stub.StreamObserver;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+package com.spbsu.datastream.repo.rpc;
 
 import java.io.IOException;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import com.spbsu.datastream.core.ClassByteCodeRequest;
+import com.spbsu.datastream.core.ClassByteCodeResponse;
+import com.spbsu.datastream.core.ClassByteCodeUploadRequest;
+import com.spbsu.datastream.core.RemoteClassLoaderServiceGrpc;
+import com.spbsu.datastream.core.Void;
+import com.spbsu.datastream.core.classloading.ClassByteCodeService;
+
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.stub.StreamObserver;
+
 import static com.google.protobuf.ByteString.copyFrom;
 
+@Service
 public class RemoteClassLoaderServer {
     private static final Logger log = LoggerFactory.getLogger(RemoteClassLoaderServer.class);
 
     private final Server server;
 
-    public RemoteClassLoaderServer(ClassByteCodeService byteCodeService, int port) {
+    @Autowired
+    public RemoteClassLoaderServer(ClassByteCodeService byteCodeService, @Value("${class.loader.server.port}") int port) {
         server = ServerBuilder.forPort(port)
                 .addService(new RemoteClassLoaderServiceImpl(byteCodeService))
                 .build();
     }
 
+    @PostConstruct
     public void start() throws IOException {
         server.start();
         log.info("Server started, listening on {}", server.getPort());
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            log.error("*** shutting down gRPC server since JVM is shutting down");
-            RemoteClassLoaderServer.this.stop();
-            log.error("*** server shut down");
-        }));
     }
 
+    @PreDestroy
     public void stop() {
         if (server != null) {
             server.shutdown();
+            log.info("Server stopped");
         }
     }
 

@@ -1,14 +1,15 @@
-package com.spbsu.datastream.repo;
+package com.spbsu.datastream.repo.service;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
 import com.spbsu.datastream.core.classloading.ClassByteCodeService;
 import com.spbsu.datastream.core.classloading.DSOperationTemplate;
 import com.spbsu.datastream.core.data.DSType;
-import com.spbsu.datastream.repo.storage.ClassStorageService;
-
-import javax.annotation.Nullable;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -16,19 +17,20 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * @author nickolaysaveliev
  * @since 07/03/2018
  */
+@Service
 public class ByteCodeRepositoryImpl implements ClassByteCodeService {
 
     private final Map<DSType, Map<DSType, Map<Integer, Class<?>>>> operationRepo = new ConcurrentHashMap<>();
     private final Map<String, AtomicInteger> latestVersions = new ConcurrentHashMap<>();
     private final ClassStorageService classStorageService;
 
-
+    @Autowired
     public ByteCodeRepositoryImpl(ClassStorageService classStorageService) {
         this.classStorageService = classStorageService;
     }
 
     @Override
-    public byte[] getByteCode(@Nullable String className) {
+    public byte[] getByteCode(String className) {
         return classStorageService.find(checkNotNull(className))
                 .orElseThrow(() -> new IllegalArgumentException(className + " class wasn't found"));
     }
@@ -39,7 +41,7 @@ public class ByteCodeRepositoryImpl implements ClassByteCodeService {
     }
 
     @Override
-    public void store(@Nullable DSOperationTemplate template) {
+    public void store(DSOperationTemplate template) {
         /*final DSOperationTemplate operationTemplate = checkNotNull(template);
         latestVersions.compute(operationName(operationTemplate), (operationName, counter) -> {
             final AtomicInteger versionCounter = Optional.ofNullable(counter).orElse(new AtomicInteger());
