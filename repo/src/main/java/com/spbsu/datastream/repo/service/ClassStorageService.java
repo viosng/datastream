@@ -1,14 +1,8 @@
 package com.spbsu.datastream.repo.service;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-
+import com.github.benmanes.caffeine.cache.*;
+import com.google.common.io.Files;
+import com.spbsu.datastream.core.util.ByteCodeBundleUtil;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,13 +10,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.github.benmanes.caffeine.cache.CacheLoader;
-import com.github.benmanes.caffeine.cache.CacheWriter;
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.github.benmanes.caffeine.cache.RemovalCause;
-import com.oracle.tools.packager.IOUtils;
-import com.spbsu.datastream.core.util.ByteCodeBundleUtil;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ClassStorageService {
@@ -35,6 +29,7 @@ public class ClassStorageService {
     @Autowired
     public ClassStorageService(@Value("${class.storage.dir}") String directory,
                                @Value("${class.storage.cache.size.bytes}") int cacheSize) {
+        new File(directory).mkdirs();
         log.info("Starting class storage in directory: {}", directory);
         FSCacheHandler cacheHandler = new FSCacheHandler(directory);
         this.byteCodeCache = Caffeine.newBuilder()
@@ -63,10 +58,10 @@ public class ClassStorageService {
 
         @Override
         public void write(@Nonnull String name, @Nonnull byte[] bytes) {
-            final String parentDir = directory + File.pathSeparator + ByteCodeBundleUtil.extractBundlePrefix(name);
+            final String parentDir = directory + "/" + ByteCodeBundleUtil.extractBundlePrefix(name);
             final File file = new File(parentDir, name);
+            file.getParentFile().mkdirs();
             try (OutputStream out = new FileOutputStream(file)) {
-                file.mkdirs();
                 out.write(bytes);
             } catch (Exception e) {
                 log.error("Can't serialize class " + name, e);
@@ -81,9 +76,9 @@ public class ClassStorageService {
         @Nullable
         @Override
         public byte[] load(@Nonnull String name) {
-            final String parentDir = directory + File.pathSeparator + ByteCodeBundleUtil.extractBundlePrefix(name);
+            final String parentDir = directory + "/" + ByteCodeBundleUtil.extractBundlePrefix(name);
             try {
-                return IOUtils.readFully(new File(parentDir, name));
+                return Files.toByteArray(new File(parentDir, name));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

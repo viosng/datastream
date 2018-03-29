@@ -1,5 +1,14 @@
 package com.spbsu.datastream.client;
 
+import com.spbsu.datastream.client.shade.CustomShader;
+import com.spbsu.datastream.core.classloading.RemoteClassByteCodeService;
+import com.spbsu.datastream.core.classloading.RemoteClassLoader;
+import com.spbsu.datastream.core.util.ByteCodeBundleUtil;
+import org.apache.commons.io.IOUtils;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugins.shade.ShadeRequest;
+import org.apache.maven.plugins.shade.relocation.SimpleRelocator;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,23 +20,11 @@ import java.util.Enumeration;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
-import org.apache.commons.io.IOUtils;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.shade.ShadeRequest;
-import org.apache.maven.plugins.shade.relocation.SimpleRelocator;
-
-import com.spbsu.datastream.client.shade.CustomShader;
-import com.spbsu.datastream.core.classloading.RemoteClassByteCodeService;
-import com.spbsu.datastream.core.classloading.RemoteClassLoader;
-import com.spbsu.datastream.core.util.ByteCodeBundleUtil;
-
-import static java.util.Collections.emptyList;
-import static java.util.Collections.singleton;
-import static java.util.Collections.singletonList;
+import static java.util.Collections.*;
 
 public class Main {
     public static void main(String[] args) throws ClassNotFoundException {
-        if (args.length < 6) {
+        if (args.length < 3) {
             Class<?> aClass = new RemoteClassLoader(new RemoteClassByteCodeService("localhost", 11111))
                     .loadClass("bundle-356fa7b1-e458-4255-a811-b1c09fef67d7.org.apache.tools.ant.types.selectors.TypeSelector.class");
             System.out.println(aClass.getName());
