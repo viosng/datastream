@@ -8,22 +8,41 @@ option objc_class_prefix = "CLS";
 package datastream.rpc;
 
 service RemoteClassLoaderService {
-    rpc findClass (ClassByteCodeRequest) returns (ClassByteCodeResponse) {}
-    rpc uploadClass (ClassByteCodeUploadRequest) returns (Void) {}
+    rpc bundleUploadStatus(BundleUploadRequest) returns (Void) {}
+    rpc findClass (ClassByteCodeRequest) returns (ClassByteCodeData) {}
+    rpc uploadClass (ClassByteCodeData) returns (Void) {}
+}
+
+message BundleUploadRequest {
+    string name = 1;
+    Type type = 2;
+    string message = 3;
+
+    enum Type {
+        START = 0;
+        FINISH = 1;
+        ERROR = 3;
+    }
 }
 
 message ClassByteCodeRequest {
     string name = 1;
 }
 
-message ClassByteCodeUploadRequest {
-    string name = 1;
-    bytes byteCode = 2;
-}
+message ClassByteCodeData {
+    string bundle = 1;
+    string name = 2;
+    bytes byteCode = 3;
+    Type type = 4;
+    string from = 5;
+    string to = 6;
+    int32 window = 7;
 
-message ClassByteCodeResponse {
-    string name = 1;
-    bytes byteCode = 2;
+    enum Type {
+        USUAL = 0;
+        MAP = 1;
+        GROUP = 2;
+    }
 }
 
 message Void {}

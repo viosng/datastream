@@ -1,28 +1,21 @@
 package com.spbsu.datastream.repo.rpc;
 
-import java.io.IOException;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
+import com.spbsu.datastream.core.*;
+import com.spbsu.datastream.core.Void;
+import com.spbsu.datastream.core.data.DSType;
+import com.spbsu.datastream.repo.service.ByteCodeRepository;
+import io.grpc.Server;
+import io.grpc.ServerBuilder;
+import io.grpc.stub.StreamObserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.spbsu.datastream.core.ClassByteCodeRequest;
-import com.spbsu.datastream.core.ClassByteCodeResponse;
-import com.spbsu.datastream.core.ClassByteCodeUploadRequest;
-import com.spbsu.datastream.core.RemoteClassLoaderServiceGrpc;
-import com.spbsu.datastream.core.Void;
-import com.spbsu.datastream.core.classloading.ClassByteCodeService;
-
-import io.grpc.Server;
-import io.grpc.ServerBuilder;
-import io.grpc.stub.StreamObserver;
-
-import static com.google.protobuf.ByteString.copyFrom;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import java.io.IOException;
 
 @Service
 public class RemoteClassLoaderServer {
@@ -31,9 +24,9 @@ public class RemoteClassLoaderServer {
     private final Server server;
 
     @Autowired
-    public RemoteClassLoaderServer(ClassByteCodeService byteCodeService, @Value("${class.loader.server.port}") int port) {
+    public RemoteClassLoaderServer(ByteCodeRepository byteCodeRepository, @Value("${class.loader.server.port}") int port) {
         server = ServerBuilder.forPort(port)
-                .addService(new RemoteClassLoaderServiceImpl(byteCodeService))
+                .addService(new RemoteClassLoaderServiceImpl(byteCodeRepository))
                 .build();
     }
 
@@ -62,19 +55,30 @@ public class RemoteClassLoaderServer {
 
     static class RemoteClassLoaderServiceImpl extends RemoteClassLoaderServiceGrpc.RemoteClassLoaderServiceImplBase {
 
-        private final ClassByteCodeService byteCodeService;
+        private final ByteCodeRepository byteCodeRepository;
 
-        RemoteClassLoaderServiceImpl(ClassByteCodeService byteCodeService) {
-            this.byteCodeService = byteCodeService;
+        RemoteClassLoaderServiceImpl(ByteCodeRepository byteCodeRepository) {
+            this.byteCodeRepository = byteCodeRepository;
         }
 
         @Override
-        public void findClass(ClassByteCodeRequest request, StreamObserver<ClassByteCodeResponse> responseObserver) {
+        public void bundleUploadStatus(BundleUploadRequest request, StreamObserver<Void> responseObserver) {
             try {
-                final ClassByteCodeResponse response = ClassByteCodeResponse.newBuilder()
-                        .setByteCode(copyFrom(byteCodeService.getByteCode(request.getName())))
-                        .build();
-                responseObserver.onNext(response);
+                switch (request.getType()) {
+
+                    case START:
+                        byteCodeRepository.onStart(request.getName());
+                        break;
+                    case FINISH:
+                        byteCodeRepository.onComplete(request.getName());
+                        break;
+                    case ERROR:
+                        byteCodeRepository.onError(request.getName(), request.getMessage());
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Unknown bundle upload type");
+                }
+                responseObserver.onNext(Void.newBuilder().build());
                 responseObserver.onCompleted();
             } catch (Exception e) {
                 log.error("Error caught", e);
@@ -83,9 +87,38 @@ public class RemoteClassLoaderServer {
         }
 
         @Override
-        public void uploadClass(ClassByteCodeUploadRequest request, StreamObserver<Void> responseObserver) {
+        public void findClass(ClassByteCodeRequest request, StreamObserver<ClassByteCodeData> responseObserver) {
             try {
-                byteCodeService.store(request.getName(), request.getByteCode().toByteArray());
+                final ClassByteCodeData data = ClassByteCodeData.parseFrom(byteCodeRepository.getByteCode(request.getName()));
+                responseObserver.onNext(data);
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                log.error("Error caught", e);
+                responseObserver.onError(e);
+            }
+        }
+
+        @Override
+        public void uploadClass(ClassByteCodeData data, StreamObserver<Void> responseObserver) {
+            try {
+                final byte[] bytes = data.toByteArray();
+                switch (data.getType()) {
+
+                    case USUAL:
+                        byteCodeRepository.store(data.getBundle(), data.getName(), bytes);
+                        break;
+                    case MAP:
+                        byteCodeRepository.storeDSOperation(data.getBundle(), data.getName(), bytes,
+                                false, DSType.of(data.getFrom()), DSType.of(data.getTo()), null);
+                        break;
+                    case GROUP:
+                        byteCodeRepository.storeDSOperation(data.getBundle(), data.getName(), bytes,
+                                true, DSType.of(data.getFrom()), DSType.of(data.getTo()), data.getWindow());
+                        break;
+                    default:
+                        throw new IllegalArgumentException("Unknown class data type");
+                }
+
                 responseObserver.onNext(Void.newBuilder().build());
                 responseObserver.onCompleted();
             } catch (Exception e) {

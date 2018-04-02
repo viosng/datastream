@@ -15,6 +15,7 @@
         <module>client</module>
         <module>repo</module>
         <module>graph-builder</module>
+        <module>examples</module>
     </modules>
 
 </project>

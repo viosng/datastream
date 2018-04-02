@@ -3,7 +3,8 @@ package com.spbsu.datastream.client;
 import com.spbsu.datastream.client.shade.CustomShader;
 import com.spbsu.datastream.core.classloading.RemoteClassByteCodeService;
 import com.spbsu.datastream.core.classloading.RemoteClassLoader;
-import com.spbsu.datastream.core.util.ByteCodeBundleUtil;
+import com.spbsu.datastream.core.operation.DSGroup;
+import com.spbsu.datastream.core.operation.DSOperation;
 import org.apache.commons.io.IOUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.shade.ShadeRequest;
@@ -15,8 +16,10 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -37,19 +40,55 @@ public class Main {
         }
     }
 
-    private static File shade(String fileName) throws IOException, MojoExecutionException {
+    private static void importJar(String host, int port, String fileName) {
+        try (final RemoteClassByteCodeService byteCodeService = new RemoteClassByteCodeService(host, port)) {
+
+            byteCodeService.processBundle(bundle -> {
+                try {
+                    final File shadeJarFile = shade(bundle, fileName);
+
+                    try(final JarFile jarFile = new JarFile(shadeJarFile.getName())) {
+                        final URLClassLoader urlClassLoader = new URLClassLoader(new URL[]{shadeJarFile.toURI().toURL()});
+
+                        final Enumeration<JarEntry> entries = jarFile.entries();
+
+                        final List<String> classes = new ArrayList<>();
+                        while (entries.hasMoreElements()) {
+                            final JarEntry je = entries.nextElement();
+                            if (je.isDirectory() || !je.getName().endsWith(".class")) {
+                                continue;
+                            }
+                            classes.add(je.getName());
+                        }
+
+                        classes.parallelStream().forEach(name -> load(byteCodeService, urlClassLoader, bundle, name));
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (!(new File(fileName).delete())) {
+            System.err.println("Can't delete file " + fileName);
+        }
+    }
+
+    private static File shade(String bundle, String fileName) throws IOException, MojoExecutionException {
         CustomShader shader = new CustomShader();
         ShadeRequest shadeRequest = new ShadeRequest();
         shadeRequest.setJars(singleton(new File(fileName)));
-        String prefix = ByteCodeBundleUtil.bundlePrefix() + ".";
         String folder = Paths.get(".").toAbsolutePath().normalize().toString();
-        shadeRequest.setRelocators(singletonList(new SimpleRelocator("", prefix, emptyList(), Arrays.asList(
+        shadeRequest.setRelocators(singletonList(new SimpleRelocator("", bundle + ".", emptyList(), Arrays.asList(
                 "java/**",
                 "sun/**",
-                "jdk/**"
+                "jdk/**",
+                "com.spbsu.datastream/**"
         ))));
         shadeRequest.setShadeSourcesContent(false);
-        File shadedJarFile = new File(folder, prefix + ".jar");
+        File shadedJarFile = new File(folder, bundle + ".jar");
         shadeRequest.setUberJar(shadedJarFile);
         shadeRequest.setFilters(emptyList());
         shadeRequest.setResourceTransformers(emptyList());
@@ -57,34 +96,25 @@ public class Main {
         return shadedJarFile;
     }
 
-    private static void importJar(String host, int port, String fileName) {
-        try (final RemoteClassByteCodeService byteCodeService = new RemoteClassByteCodeService(host, port)) {
-
-            final File shadeJarFile = shade(fileName);
-
-            try(final JarFile jarFile = new JarFile(shadeJarFile.getName())) {
-                final URLClassLoader urlClassLoader = new URLClassLoader(new URL[]{shadeJarFile.toURI().toURL()});
-
-                final Enumeration<JarEntry> entries = jarFile.entries();
-                while (entries.hasMoreElements()) {
-                    final JarEntry je = entries.nextElement();
-                    if (je.isDirectory() || !je.getName().endsWith(".class")) {
-                        continue;
-                    }
-                    try(InputStream resourceAsStream = urlClassLoader.getResourceAsStream(je.getName())){
-                        final String className = je.getName().replace('/', '.');
-                        byteCodeService.store(className, IOUtils.toByteArray(resourceAsStream));
-                    }
+    private static void load(RemoteClassByteCodeService byteCodeService, ClassLoader classLoader, String bundle, String name) {
+        try(InputStream resourceAsStream = classLoader.getResourceAsStream(name)){
+            final String className = name.replace('/', '.');
+            final byte[] bytes = IOUtils.toByteArray(resourceAsStream);
+            final Class<?> aClass = classLoader.loadClass(className);
+            if (aClass.isAssignableFrom(DSOperation.class)) {
+                DSOperation operation = ((DSOperation) aClass.newInstance());
+                if (operation instanceof DSGroup) {
+                    byteCodeService.storeDSOperation(bundle, className, bytes, true, operation.fromType(),
+                            operation.toType(), ((DSGroup) operation).window());
+                } else {
+                    byteCodeService.storeDSOperation(bundle, className, bytes, false, operation.fromType(),
+                            operation.toType(), null);
                 }
-            } finally {
-                if (!(shadeJarFile.delete())) {
-                    System.err.println("Can't delete file " + shadeJarFile.getName());
-                }
+            } else {
+                byteCodeService.store(bundle, className, bytes);
             }
-        } catch (IOException | MojoExecutionException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
-
-
 }
