@@ -1,9 +1,15 @@
 package com.spbsu.datastream.repo.service;
 
-import com.spbsu.datastream.core.classloading.ClassByteCodeService;
-import com.spbsu.datastream.core.data.DSType;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import com.spbsu.datastream.core.classloading.ClassByteCodeService;
+import com.spbsu.datastream.core.data.DSType;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -14,14 +20,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 @Service
 public class ByteCodeRepository implements ClassByteCodeService, BundleUploadHandler {
 
+    private final Map<String, Set<String>> bundleClasses = new ConcurrentHashMap<>();
     private final ByteStorageService byteStorageService;
-    private final BundleIndexService bundleIndexService;
     private final OperationTypeIndexService operationTypeIndexService;
 
+
     @Autowired
-    public ByteCodeRepository(ByteStorageService byteStorageService, BundleIndexService bundleIndexService, OperationTypeIndexService operationTypeIndexService) {
+    public ByteCodeRepository(ByteStorageService byteStorageService, OperationTypeIndexService operationTypeIndexService) {
         this.byteStorageService = byteStorageService;
-        this.bundleIndexService = bundleIndexService;
         this.operationTypeIndexService = operationTypeIndexService;
     }
 
@@ -33,7 +39,7 @@ public class ByteCodeRepository implements ClassByteCodeService, BundleUploadHan
 
     @Override
     public void store(String bundle, String name, byte[] bytes) {
-        bundleIndexService.put(bundle, name);
+        bundleClasses.get(bundle).add(name);
         byteStorageService.put(checkNotNull(name), checkNotNull(bytes));
     }
 
@@ -45,19 +51,19 @@ public class ByteCodeRepository implements ClassByteCodeService, BundleUploadHan
 
     @Override
     public void onStart(String bundle) {
-        bundleIndexService.onStart(bundle);
+        bundleClasses.computeIfAbsent(bundle, __ -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
         operationTypeIndexService.onStart(bundle);
     }
 
     @Override
     public void onError(String bundle, String message) {
-        bundleIndexService.onError(bundle, message);
+        bundleClasses.remove(bundle).forEach(byteStorageService::remove);
         operationTypeIndexService.onError(bundle, message);
     }
 
     @Override
     public void onComplete(String bundle) {
-        bundleIndexService.onComplete(bundle);
+        bundleClasses.remove(bundle);
         operationTypeIndexService.onComplete(bundle);
     }
 }

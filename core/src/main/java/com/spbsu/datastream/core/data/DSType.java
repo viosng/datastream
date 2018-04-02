@@ -2,6 +2,8 @@ package com.spbsu.datastream.core.data;
 
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+
 public class DSType {
     private final String name;
 
@@ -9,6 +11,7 @@ public class DSType {
         this.name = name;
     }
 
+    @JsonCreator
     public static DSType of(String name) {
         return new DSType(name);
     }
