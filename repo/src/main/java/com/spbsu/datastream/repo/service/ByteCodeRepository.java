@@ -1,17 +1,20 @@
 package com.spbsu.datastream.repo.service;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
+import com.spbsu.datastream.core.classloading.ClassByteCodeService;
+import com.spbsu.datastream.core.data.DSType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.spbsu.datastream.core.classloading.ClassByteCodeService;
-import com.spbsu.datastream.core.data.DSType;
+import java.util.Collections;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Collections.emptySet;
 
 /**
  * @author nickolaysaveliev
@@ -19,7 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 @Service
 public class ByteCodeRepository implements ClassByteCodeService, BundleUploadHandler {
-
+    private final Logger log = LoggerFactory.getLogger(this.getClass());
     private final Map<String, Set<String>> bundleClasses = new ConcurrentHashMap<>();
     private final ByteStorageService byteStorageService;
     private final OperationTypeIndexService operationTypeIndexService;
@@ -41,6 +44,7 @@ public class ByteCodeRepository implements ClassByteCodeService, BundleUploadHan
     public void store(String bundle, String name, byte[] bytes) {
         bundleClasses.get(bundle).add(name);
         byteStorageService.put(checkNotNull(name), checkNotNull(bytes));
+        log.info("Store bundle: {}, class: {}", bundle, name);
     }
 
     @Override
@@ -57,7 +61,9 @@ public class ByteCodeRepository implements ClassByteCodeService, BundleUploadHan
 
     @Override
     public void onError(String bundle, String message) {
-        bundleClasses.remove(bundle).forEach(byteStorageService::remove);
+        Optional.ofNullable(bundleClasses.remove(bundle))
+                .orElse(emptySet())
+                .forEach(byteStorageService::remove);
         operationTypeIndexService.onError(bundle, message);
     }
 

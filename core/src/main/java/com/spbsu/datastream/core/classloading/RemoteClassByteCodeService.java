@@ -51,6 +51,7 @@ public class RemoteClassByteCodeService implements ClassByteCodeService, AutoClo
                     .setType(BundleUploadRequest.Type.ERROR)
                     .setMessage(e.getMessage())
                     .build());
+            throw e;
         }
     }
 

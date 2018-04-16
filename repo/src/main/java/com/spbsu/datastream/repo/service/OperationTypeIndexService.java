@@ -1,5 +1,17 @@
 package com.spbsu.datastream.repo.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.MapType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
+import com.spbsu.datastream.core.data.DSType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -14,23 +26,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.MapType;
-import com.fasterxml.jackson.databind.type.TypeFactory;
-import com.spbsu.datastream.core.data.DSType;
-
 @Service
 public class OperationTypeIndexService implements BundleUploadHandler {
-    private final Logger log = LoggerFactory.getLogger(this.getClass());
+    private final Logger log = LoggerFactory.getLogger(getClass());
 
     private final AtomicBoolean isChanged = new AtomicBoolean();
     private final Map<String, Map<DSType, Map<DSType, List<String>>>> operationVersions = new ConcurrentHashMap<>();
@@ -110,12 +108,14 @@ public class OperationTypeIndexService implements BundleUploadHandler {
         try {
             readLock.lock();
             final Map<String, Map<DSType, Map<DSType, String>>> bundleOperations = tempOperationVersions.remove(bundle);
-            isChanged.set(!bundleOperations.isEmpty());
-            bundleOperations
-                    .forEach((operationType, fromMap) ->
-                            fromMap.forEach((from, toMap) ->
-                                    toMap.forEach((to, name) ->
-                                            addOperation(operationType, name, from, to))));
+            if (bundleOperations != null) {
+                isChanged.set(!bundleOperations.isEmpty());
+                bundleOperations
+                        .forEach((operationType, fromMap) ->
+                                fromMap.forEach((from, toMap) ->
+                                        toMap.forEach((to, name) ->
+                                                addOperation(operationType, name, from, to))));
+            }
         } finally {
             readLock.unlock();
         }
